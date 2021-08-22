@@ -1,5 +1,8 @@
 package au.com.muel.envconfig;
 
+import static java.lang.String.format;
+import static java.util.Optional.ofNullable;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
@@ -41,58 +44,50 @@ public class DefaultInvocationHandler implements InvocationHandler {
             final String msg = "Default methods are not supported, found: " + method;
             throw new UnsupportedOperationException(msg);
         }
+
         if (configType.equals(method.getDeclaringClass())) {
-
-            return cachedResults.computeIfAbsent(method, key -> {
-
-                // 1. resolve env var name: custom, split words
-                // 2. determine if required, and therefore default values
-                // 3. Value parsing (lists and maps)
-                // 4. Type conversion
-
-
-                // 1. resolve env var name: custom, split words
-                EnvVar envVarConfig = resolveEnvVarConfig(DEFAULT_VALUES, key.getAnnotation(EnvVar.class));
-
-                final String envVarName = resolveEnvVarName(prefix, key.getName(), envVarConfig);
-
-                // 2. determine if required, and therefore default values
-                final String envVarValue = resolveEnvVarValue(envVarConfig, envVarName, configSource);
-
-                final ParserRegistry parserRegistry = createParserRegistry();
-                final TypeConverter converter = createTypeConverter(parserRegistry);
-                final Type targetType = key.getGenericReturnType();
-                try {
-
-                return parseEnvVarValue(envVarConfig, parserRegistry, converter, targetType, envVarValue);
-                } catch (Exception e) {
-throw new IllegalArgumentException(
-                    String.format("failed to parse %s for %s (%s)", envVarValue, envVarName, e.toString()));
-//                    e.printStackTrace();
-                }
-            });
+            return cachedResults.computeIfAbsent(method, this::invokeConfigInterfaceMethod);
         }
 
         if (Object.class.equals(method.getDeclaringClass())) {
+
             if ("equals".equals(method.getName())) {
                 return proxy == args[0];
             }
-//TODO cache these
+
             if ("hashCode".equals(method.getName())) {
                 return System.identityHashCode(proxy);
             }
+
             if ("toString".equals(method.getName())) {
-                return String.format("%s<Proxy:%s>", configType.getSimpleName(), prefix);
+                return format("%s<Proxy:%s>", configType.getSimpleName(), prefix);
             }
-         }
+        }
+
+        throw new UnsupportedOperationException("Unsupported method invoked: " + method);
+    }
+
+    private final Object invokeConfigInterfaceMethod(Method method) {
+
+        final EnvVar envVarConfig = resolveEnvVarConfig(DEFAULT_VALUES, method.getAnnotation(EnvVar.class));
+
+        final String envVarName = resolveEnvVarName(prefix, method.getName(), envVarConfig);
+
+        final String envVarValue = resolveEnvVarValue(envVarConfig, envVarName, configSource);
+
+        final ParserRegistry parserRegistry = createParserRegistry();
+        final TypeConverter converter = createTypeConverter(parserRegistry);
+        final Type targetType = method.getGenericReturnType();
         try {
 
-            return method.invoke(proxy, args);
-        } catch (Throwable t) {
+            return parseEnvVarValue(envVarConfig, parserRegistry, converter, targetType, envVarValue);
+        } catch (EnvConfigException e) {
 
-            System.err.println("boohoo");
-            System.err.println(t.getMessage());
-            return null;
+            throw e;
+        } catch (RuntimeException e) {
+
+            final String msg = format("failed to parse \"%s\" for %s (%s)", envVarValue, envVarName, e.toString());
+            throw new EnvConfigException(msg);
         }
     }
 
@@ -110,11 +105,12 @@ throw new IllegalArgumentException(
 
     protected String resolveEnvVarName(Optional<String> prefix, String methodName, EnvVar config) {
 
-        final String suffix;
         if (!config.envVarName().isEmpty()) {
+            return config.envVarName();
+        }
 
-            suffix = config.envVarName();
-        } else if (config.splitWords()) {
+        final String suffix;
+        if (config.splitWords()) {
 
             final Matcher matcher = Pattern.compile("([a-z][A-Z])").matcher(methodName);
             final StringBuilder builder = new StringBuilder(methodName.length() + 8);
@@ -138,8 +134,8 @@ throw new IllegalArgumentException(
 
     protected String resolveEnvVarValue(EnvVar config, String envVarName, Map<String, String> configSource) {
 
-        final String envVarValue = this.configSource.get(envVarName);
-        if (envVarValue == null && !config.defaultValue().isEmpty()) {
+        final String envVarValue = ofNullable(configSource.get(envVarName)).orElse("");
+        if (envVarValue.isEmpty() && !config.defaultValue().isEmpty()) {
             return config.defaultValue();
         }
 
@@ -149,21 +145,25 @@ throw new IllegalArgumentException(
     protected Object parseEnvVarValue(EnvVar config, ParserRegistry registry, TypeConverter typeConverter,
             Type targetType, String envVarValue) {
 
-        for (Class<? extends ValueParser<?>> typeConverterClass : config.customParsers()) {
+        for (Class<? extends ValueParser<?>> valueParserClass : config.customParsers()) {
 
             try {
 
                 @SuppressWarnings("unchecked")
-                final Constructor<ValueParser<?>> noArgsConstructor = (Constructor<ValueParser<?>>) typeConverterClass.getDeclaredConstructor();
+                final Constructor<ValueParser<?>> noArgsConstructor =
+                    (Constructor<ValueParser<?>>) valueParserClass.getDeclaredConstructor();
                 noArgsConstructor.setAccessible(true);
-                final ValueParser<?> valueParser = noArgsConstructor.newInstance();
-                registry.registerCustomParsers(valueParser);
+
+                registry.registerCustomParsers(noArgsConstructor.newInstance());
             } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
                     | InvocationTargetException | SecurityException e) {
 
-e.printStackTrace();
+                final String msg  = format("Custom ValueParser could not be instantiated: %s (%s)", valueParserClass, e);
+                throw new EnvConfigException(msg);
             } catch (NoSuchMethodException e) {
-                throw new IllegalArgumentException(envVarValue, e);
+
+                final String msg = format("Custom ValueParser is missing a no-args construction: %s", valueParserClass);
+                throw new EnvConfigException(msg);
             }
         }
 

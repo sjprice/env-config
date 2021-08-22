@@ -66,7 +66,6 @@ System.out.println("Duration = " + (System.currentTimeMillis() - start));
         assertEquals("jdbc:postgresql://localhost/test", config.dbJdbcUrl());
         assertEquals(10, config.dbPoolSize());
         assertEquals(Sets.newHashSet("a.foo.com", "b.foo.com", "c.foo.com"), config.corsDomains());
-
     }
 
     static interface TestConfig {
@@ -80,10 +79,10 @@ System.out.println("Duration = " + (System.currentTimeMillis() - start));
 
         List<Integer> counts();
 
-        @EnvVar(envVarName = "COUNTS")
+        @EnvVar(envVarName = "TEST_COUNTS")
         Set<Integer> andCountsAgain();
 
-        @EnvVar(envVarName = "COUNTS")
+        @EnvVar(envVarName = "TEST_COUNTS")
         int[] moreCounts();
 
         @EnvVar(defaultValue = "7431234")

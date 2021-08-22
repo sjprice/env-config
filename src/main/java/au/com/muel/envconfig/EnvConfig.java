@@ -22,8 +22,8 @@ public class EnvConfig {
         return process(Optional.empty(), configType, getenv());
     }
 
-    public static <T> T fromEnv(final String prefix, final Class<T> configType) {
-        return process(Optional.of(prefix), configType, getenv());
+    public static <T> T fromEnv(final String namespace, final Class<T> configType) {
+        return process(Optional.of(namespace), configType, getenv());
     }
 
     public static <T> T fromConfigSource(final Class<T> configType,
@@ -31,13 +31,13 @@ public class EnvConfig {
         return process(Optional.empty(), configType, configSource);
     }
 
-    public static <T> T fromConfigSource(final String prefix, final Class<T> configType,
+    public static <T> T fromConfigSource(final String namespace, final Class<T> configType,
             final Map<String, String> configSource) {
-        return process(Optional.of(prefix), configType, configSource);
+        return process(Optional.of(namespace), configType, configSource);
     }
 
-    public static void clear(final Optional<String> prefix, final Class<?> configType) {
-        final String key = createCacheKey(prefix, configType);
+    public static void clear(final Optional<String> namespace, final Class<?> configType) {
+        final String key = createCacheKey(namespace, configType);
         CONFIG_CACHE.remove(key);
     }
 
@@ -45,21 +45,21 @@ public class EnvConfig {
         CONFIG_CACHE.clear();
     }
 
-    private static <T> T process(final Optional<String> prefix, final Class<T> configType,
+    private static <T> T process(final Optional<String> namespace, final Class<T> configType,
             final Map<String, String> configSource) {
 
-        final String key = createCacheKey(prefix, configType);
-        final Object config = CONFIG_CACHE.computeIfAbsent(key, k -> createConfig(prefix, configType, configSource));
+        final String key = createCacheKey(namespace, configType);
+        final Object config = CONFIG_CACHE.computeIfAbsent(key, k -> createConfig(namespace, configType, configSource));
         return configType.cast(config);
     }
 
-    private static <T> T createConfig(final Optional<String> prefix, final Class<T> configType, Map<String, String> configSource) {
+    private static <T> T createConfig(final Optional<String> namespace, final Class<T> configType, Map<String, String> configSource) {
 
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         Class<?>[] types = new Class<?>[] {configType};
-        InvocationHandler handler = new DefaultInvocationHandler(prefix, configType, configSource);
+        InvocationHandler handler = new DefaultInvocationHandler(namespace, configType, configSource);
 
-        T config = configType.cast(newProxyInstance(classLoader, types, handler));
+        final T config = configType.cast(newProxyInstance(classLoader, types, handler));
 
         final Method[] methods = configType.getDeclaredMethods();
         final List<String> errors = new ArrayList<>(methods.length);
