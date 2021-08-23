@@ -1,5 +1,7 @@
 # env-config
 
+![build status](https://github.com/sjprice/env-config/actions/workflows/ci.yml/badge.svg)
+
 A Java library for deriving application configuration from environment variables.
 
 It's a Java spin on the excellent Golang libraries:
