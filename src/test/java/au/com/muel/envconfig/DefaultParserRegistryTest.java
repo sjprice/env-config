@@ -72,6 +72,7 @@ class DefaultParserRegistryTest {
     @Test
     void testString() {
         assertEquals("Hello", registry.parserForType(String.class).get().parse("Hello", null));
+        assertThrows(IllegalArgumentException.class, () -> registry.parserForType(String.class).get().parse("", null));
     }
 
 }
