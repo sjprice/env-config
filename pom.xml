@@ -53,6 +53,12 @@
                     <configuration>
                         <environmentVariables>
                             <TEST_HOST>localhost</TEST_HOST>
+                            <MY_PORT>8080</MY_PORT>
+                            <STRANGE_TIME_MAP>DAYS:1,HOURS:2,MINUTES:3</STRANGE_TIME_MAP>
+                            <MYAPP_AUTH_SERVICE_URL>https://auth.service.com/auth</MYAPP_AUTH_SERVICE_URL>  
+                            <MYAPP_DB_JDBC_URL>jdbc:postgresql://localhost/test</MYAPP_DB_JDBC_URL>
+                            <MYAPP_DB_POOL_SIZE>10</MYAPP_DB_POOL_SIZE>
+                            <MYAPP_CORS_DOMAINS>a.foo.com,b.foo.com,c.foo.com</MYAPP_CORS_DOMAINS>
                         </environmentVariables>
                     </configuration>
                 </plugin>

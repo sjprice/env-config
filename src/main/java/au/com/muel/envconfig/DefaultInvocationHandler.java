@@ -4,10 +4,13 @@ import static java.lang.String.format;
 import static java.util.Optional.ofNullable;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.lang.reflect.WildcardType;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -35,15 +38,7 @@ public class DefaultInvocationHandler implements InvocationHandler {
 
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 
-//TODO validate against wildcard and variable types
-
-        if (method.isDefault()) {
-            // There's no nice interoperable way to handle default methods across different Java
-            // versions, so it's easiest to just prevent usage.
-            // https://blog.jooq.org/2018/03/28/correct-reflective-access-to-interface-default-methods-in-java-8-9-10/
-            final String msg = "Default methods are not supported, found: " + method;
-            throw new UnsupportedOperationException(msg);
-        }
+        validateMethod(method);
 
         if (configType.equals(method.getDeclaringClass())) {
             return cachedResults.computeIfAbsent(method, this::invokeConfigInterfaceMethod);
@@ -66,6 +61,35 @@ public class DefaultInvocationHandler implements InvocationHandler {
 
         throw new UnsupportedOperationException("Unsupported method invoked: " + method);
     }
+
+    // TODO consider moving out of this class and into EnvConfig
+    private void validateMethod(Method method) {
+
+        if (method.getParameterCount() > 0) {
+            throw new IllegalArgumentException("Methods with arguments are not allowed: " + method);
+        }
+
+        if (method.isDefault()) {
+            // There's no nice interoperable way to handle default methods across different Java
+            // versions, so it's easiest to just prevent usage.
+            // https://blog.jooq.org/2018/03/28/correct-reflective-access-to-interface-default-methods-in-java-8-9-10/
+            final String msg = "Default methods are not supported, found: " + method;
+            throw new UnsupportedOperationException(msg);
+        }
+
+        final Type returnType = method.getGenericReturnType();
+        if (returnType instanceof TypeVariable<?>) {
+            throw new IllegalArgumentException("Type variable return types are not allowed: " + method);
+        }
+
+        if (returnType instanceof WildcardType) {
+            throw new IllegalArgumentException("Wildcard return types are not allowed: " + method);
+        }
+
+        if (returnType instanceof GenericArrayType) {
+            throw new IllegalArgumentException("Generic array return types are not allowed: " + method);
+        }
+     }
 
     private final Object invokeConfigInterfaceMethod(Method method) {
 
