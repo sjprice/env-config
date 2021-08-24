@@ -1,6 +1,7 @@
 # env-config
 
 ![build status](https://github.com/sjprice/env-config/actions/workflows/ci.yml/badge.svg)
+![codeql status](https://github.com/sjprice/env-config/actions/workflows/codeql-analysis.yml/badge.svg)
 
 A Java library for deriving application configuration from environment variables.
 
