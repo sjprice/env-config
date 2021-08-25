@@ -8,6 +8,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.Instant;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -35,11 +36,11 @@ class DefaultParserRegistryTest {
 
     @ParameterizedTest
     @MethodSource
-    void testTooLarge(String s, Class<?> clazz) {
+    void testIntegerTypesTooLarge(String s, Class<?> clazz) {
         assertThrows(NumberFormatException.class, () -> registry.parserForType(clazz).get().parse(s, null));
     }
 
-    static Stream<Arguments> testTooLarge() {
+    static Stream<Arguments> testIntegerTypesTooLarge() {
         return Stream.of(
             arguments("128", byte.class),
             arguments("128", Byte.class),
@@ -70,9 +71,14 @@ class DefaultParserRegistryTest {
     }
 
     @Test
-    void testString() {
+    void testStringType() {
         assertEquals("Hello", registry.parserForType(String.class).get().parse("Hello", null));
         assertThrows(IllegalArgumentException.class, () -> registry.parserForType(String.class).get().parse("", null));
+    }
+
+    @Test
+    void testTimeTypes() {
+        assertEquals(Instant.EPOCH, registry.parserForType(Instant.class).get().parse("1970-01-01T00:00:00Z", null));
     }
 
 }
