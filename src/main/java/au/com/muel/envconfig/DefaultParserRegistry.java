@@ -81,7 +81,17 @@ final class DefaultParserRegistry implements ParserRegistry {
 
     private final void registerCommonTypes() {
 
-        registerParser(Boolean.class, fromFunction(Boolean::parseBoolean));
+        // special parsing for boolean so that we can distinguish between a false value and an
+        // invalid value
+        registerParser(Boolean.class, fromFunction(s -> {
+            if (Boolean.parseBoolean(s)) {
+                return Boolean.TRUE;
+            }
+            if ("false".equalsIgnoreCase(s)) {
+                return Boolean.FALSE;
+            }
+            throw new EnvConfigException("Invalid boolean, got \"" + s + "\"");
+        }));
 
         // integer types
         registerParser(Byte.class,       fromFunction(Byte::parseByte));
