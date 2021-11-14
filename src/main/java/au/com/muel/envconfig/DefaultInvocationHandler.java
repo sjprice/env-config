@@ -12,11 +12,14 @@ import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 
 public class DefaultInvocationHandler implements InvocationHandler {
@@ -40,7 +43,7 @@ public class DefaultInvocationHandler implements InvocationHandler {
 
         validateMethod(method);
 
-        if (configType.equals(method.getDeclaringClass())) {
+        if (interfacesToProxy().anyMatch(c -> c.equals(method.getDeclaringClass()))) {
             return cachedResults.computeIfAbsent(method, this::invokeConfigInterfaceMethod);
         }
 
@@ -89,7 +92,28 @@ public class DefaultInvocationHandler implements InvocationHandler {
         if (returnType instanceof GenericArrayType) {
             throw new IllegalArgumentException("Generic array return types are not allowed: " + method);
         }
-     }
+    }
+
+    /**
+     * Returns a stream of the interface inheritance hierarchy, so that all methods may be proxied.
+     */
+    Stream<Class<?>> interfacesToProxy() {
+
+        final Queue<Class<?>> interfacesQueue = new LinkedList<>();
+        interfacesQueue.add(configType);
+        return Stream.iterate(interfacesQueue,
+                interfaces -> !interfaces.isEmpty(),
+                interfaces -> {
+                    int size = interfaces.size();
+                    while (size-- > 0) {
+                        for (Class<?> interfaceToProxy : interfaces.poll().getInterfaces()) {
+                            interfaces.add(interfaceToProxy);
+                        }
+                    }
+                    return interfaces;
+                }
+            ).flatMap(cls -> cls.stream());
+    }
 
     private final Object invokeConfigInterfaceMethod(Method method) {
 

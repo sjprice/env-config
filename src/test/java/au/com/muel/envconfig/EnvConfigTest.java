@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 
 
@@ -61,6 +62,25 @@ class EnvConfigTest {
         String dbJdbcUrl();
         int dbPoolSize();
         Set<String> corsDomains();
+    }
+
+    @Test
+    void testInterfaceInheritance() {
+
+        final Map<String, String> envVars = ImmutableMap.of("FOO", "foo", "BAR", "bar");
+
+        final FooBar config = EnvConfig.fromConfigSource(FooBar.class, envVars);
+
+        assertEquals("foo", config.foo());
+        assertEquals("bar", config.bar());
+    }
+
+    static interface Bar {
+        String bar();
+    }
+
+    static interface FooBar extends Bar {
+        String foo();
     }
 
 }

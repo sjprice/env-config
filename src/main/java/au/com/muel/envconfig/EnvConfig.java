@@ -3,7 +3,6 @@ package au.com.muel.envconfig;
 import static java.lang.System.getenv;
 import static java.lang.reflect.Proxy.newProxyInstance;
 
-import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -57,25 +56,28 @@ public class EnvConfig {
 
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         Class<?>[] types = new Class<?>[] {configType};
-        InvocationHandler handler = new DefaultInvocationHandler(namespace, configType, configSource);
+        DefaultInvocationHandler handler = new DefaultInvocationHandler(namespace, configType, configSource);
 
         final T config = configType.cast(newProxyInstance(classLoader, types, handler));
 
-        final Method[] methods = configType.getDeclaredMethods();
-        final List<String> errors = new ArrayList<>(methods.length);
-        for (Method m : methods) {
+        final List<String> errors = new ArrayList<>();
+        handler.interfacesToProxy().forEach(interfaceToProxy -> {
 
-            if (!Modifier.isStatic(m.getModifiers())) {
-                try {
-    
-                    m.invoke(config);
-                } catch (IllegalAccessException | IllegalArgumentException e) {
-                    errors.add(String.format("%s() - failed invocation: %s", m.getName(), e.getMessage()));
-                } catch (InvocationTargetException e) {
-                    errors.add(String.format("%s() - %s", m.getName(), e.getCause().getMessage()));
+            final Method[] methods = interfaceToProxy.getDeclaredMethods();
+            for (Method m : methods) {
+
+                if (!Modifier.isStatic(m.getModifiers())) {
+                    try {
+
+                        m.invoke(config);
+                    } catch (IllegalAccessException | IllegalArgumentException e) {
+                        errors.add(String.format("%s() - failed invocation: %s", m.getName(), e.getMessage()));
+                    } catch (InvocationTargetException e) {
+                        errors.add(String.format("%s() - %s", m.getName(), e.getCause().getMessage()));
+                    }
                 }
             }
-        }
+        });
 
         if (!errors.isEmpty()) {
             throw new IllegalStateException("Failed to parse config with errors: " + errors);
