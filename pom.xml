@@ -5,7 +5,7 @@
 
     <groupId>au.com.muel</groupId>
     <artifactId>env-config</artifactId>
-    <version>0.8.1</version>
+    <version>0.8.2</version>
 
     <name>Env Config</name>
     <description>A Java lib for deriving configuration from environment variables</description>
